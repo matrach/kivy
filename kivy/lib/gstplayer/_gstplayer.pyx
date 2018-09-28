@@ -34,6 +34,14 @@ cdef extern from 'gst/gst.h':
         GST_SEEK_FLAG_ACCURATE
         GST_SEEK_FLAG_FLUSH
 
+
+
+    ctypedef enum GstSeekType:
+        GST_SEEK_TYPE_NONE
+        GST_SEEK_TYPE_SET
+        GST_SEEK_TYPE_END
+
+
     ctypedef enum GstStateChangeReturn:
         pass
 
@@ -77,6 +85,10 @@ cdef extern from 'gst/gst.h':
     bool gst_element_seek_simple(
             GstElement *element, GstFormat format,
             GstSeekFlags seek_flags, gint64 seek_pos) nogil
+    bool gst_element_seek(
+            GstElement *element, double rate, GstFormat format, GstSeekFlags flags,
+            GstSeekType start_type, gint64 start,
+            GstSeekType stop_type, gint64 stop) nogil
     void gst_message_parse_error(
             GstMessage *message, GError **gerror, char **debug)
     void gst_message_parse_warning(
@@ -346,9 +358,10 @@ cdef class GstPlayer:
             return -1
         return position / float(GST_SECOND)
 
-    def seek(self, float percent, bint precise):
+    def seek(self, float percent, bint precise, float rate=1.):
+        print("GST", percent, precise, rate)
         with nogil:
-            self._seek(percent, precise)
+            self._seek(percent, precise, rate)
 
     #
     # C-like API, that doesn't require the GIL
@@ -386,7 +399,7 @@ cdef class GstPlayer:
             return 0
         return position
 
-    cdef void _seek(self, float percent, bint precise) nogil:
+    cdef void _seek(self, float percent, bint precise, float rate) nogil:
         cdef GstState current_state, pending_state
         cdef gboolean ret
         cdef gint64 seek_t, duration
@@ -410,8 +423,13 @@ cdef class GstPlayer:
                 &pending_state, <GstClockTime>GST_SECOND)
         if current_state == GST_STATE_READY:
             gst_element_set_state(self.pipeline, GST_STATE_PAUSED)
-        ret = gst_element_seek_simple(self.playbin, GST_FORMAT_TIME,
-                <GstSeekFlags>seek_flags, seek_t)
+
+        #ret = gst_element_seek_simple(self.playbin, GST_FORMAT_TIME,
+        #        <GstSeekFlags>seek_flags, seek_t)
+        ret = gst_element_seek(self.playbin, rate,
+                GST_FORMAT_TIME,
+                <GstSeekFlags>seek_flags, GST_SEEK_TYPE_SET, seek_t,
+                GST_SEEK_TYPE_NONE, seek_t+<gint64>(5./GST_SECOND))
 
         if not ret:
             return

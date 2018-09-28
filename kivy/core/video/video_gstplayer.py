@@ -88,8 +88,8 @@ class VideoGstplayer(VideoBase):
         self.player.set_volume(self.volume)
         self.player.play()
 
-    def seek(self, percent, precise=True):
-        self.player.seek(percent, precise)
+    def seek(self, percent, precise=True, rate=1.):
+        self.player.seek(percent, precise, rate=rate)
 
     def _get_position(self):
         return self.player.get_position()
