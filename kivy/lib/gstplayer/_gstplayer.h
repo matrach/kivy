@@ -31,6 +31,11 @@ static void g_object_set_int(GstElement *element, char *name, int value)
 	g_object_set(G_OBJECT(element), name, value, NULL);
 }
 
+static void g_warning_string(char *message)
+{
+	g_warning("%s", message);
+}
+
 typedef void (*appcallback_t)(void *, int, int, char *, int);
 typedef void (*buscallback_t)(void *, GstMessage *);
 typedef struct {

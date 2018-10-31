@@ -33,14 +33,14 @@ cdef extern from 'gst/gst.h':
         GST_SEEK_FLAG_KEY_UNIT
         GST_SEEK_FLAG_ACCURATE
         GST_SEEK_FLAG_FLUSH
-
-
+        GST_SEEK_FLAG_TRICKMODE
+        GST_SEEK_FLAG_TRICKMODE_KEY_UNITS
+        GST_SEEK_FLAG_TRICKMODE_NO_AUDIO
 
     ctypedef enum GstSeekType:
         GST_SEEK_TYPE_NONE
         GST_SEEK_TYPE_SET
         GST_SEEK_TYPE_END
-
 
     ctypedef enum GstStateChangeReturn:
         pass
@@ -101,6 +101,7 @@ cdef extern from '_gstplayer.h':
     void g_object_set_double(GstElement *element, char *name, double value) nogil
     void g_object_set_caps(GstElement *element, char *value)
     void g_object_set_int(GstElement *element, char *name, int value)
+    void g_warning_string(char *message)
     gulong c_appsink_set_sample_callback(GstElement *appsink,
             appcallback_t callback, void *userdata)
     void c_appsink_pull_preroll(GstElement *appsink,
@@ -221,6 +222,7 @@ cdef class GstPlayer:
 
     def load(self):
         cdef bytes py_uri
+        cdef GstElement *scaletempo
 
         # if already loaded before, clean everything.
         if self.pipeline != NULL:
@@ -244,6 +246,13 @@ cdef class GstPlayer:
         self.playbin = gst_element_factory_make('playbin', NULL)
         if self.playbin == NULL:
             raise GstPlayerException('Unable to create a playbin')
+
+        scaletempo = gst_element_factory_make ("scaletempo", NULL);
+        if (scaletempo):
+            g_object_set_void(self.playbin, "audio-filter", scaletempo);
+        else:
+            g_warning_string("scaletempo element not available. Audio pitch "
+                "will not be preserved during trick modes");
 
         gst_bin_add(<GstBin *>self.pipeline, self.playbin)
 
@@ -359,7 +368,8 @@ cdef class GstPlayer:
         return position / float(GST_SECOND)
 
     def seek(self, float percent, bint precise, float rate=1.):
-        print("GST", percent, precise, rate)
+        if rate < 1e-5:
+            raise GstPlayerException("Rate has to be positive.")
         with nogil:
             self._seek(percent, precise, rate)
 
@@ -402,7 +412,7 @@ cdef class GstPlayer:
     cdef void _seek(self, float percent, bint precise, float rate) nogil:
         cdef GstState current_state, pending_state
         cdef gboolean ret
-        cdef gint64 seek_t, duration
+        cdef gint64 seek_t, duration, seek_flags
         if self.playbin == NULL:
             return
 
@@ -411,25 +421,28 @@ cdef class GstPlayer:
             seek_t = 0
         else:
             seek_t = <gint64>(percent * duration)
-        #seek_flags = GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT | GST_SEEK_FLAG_ACCURATE
-        #seek_flags = 3
 
+        seek_flags = 0
         if precise:
             seek_flags = GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_ACCURATE
         else:
-            seek_flags = GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT   
+            seek_flags = GST_SEEK_FLAG_FLUSH | GST_SEEK_FLAG_KEY_UNIT
+
+        if rate > 2.1 or rate < -2.1:
+            seek_flags |= GST_SEEK_FLAG_TRICKMODE
+        if rate > 5.1 or rate < -5.1:
+            seek_flags |= GST_SEEK_FLAG_TRICKMODE_NO_AUDIO
+            # GST_SEEK_FLAG_TRICKMODE_KEY_UNITS is causing issues sometimes
 
         gst_element_get_state(self.pipeline, &current_state,
                 &pending_state, <GstClockTime>GST_SECOND)
         if current_state == GST_STATE_READY:
             gst_element_set_state(self.pipeline, GST_STATE_PAUSED)
 
-        #ret = gst_element_seek_simple(self.playbin, GST_FORMAT_TIME,
-        #        <GstSeekFlags>seek_flags, seek_t)
         ret = gst_element_seek(self.playbin, rate,
                 GST_FORMAT_TIME,
                 <GstSeekFlags>seek_flags, GST_SEEK_TYPE_SET, seek_t,
-                GST_SEEK_TYPE_NONE, seek_t+<gint64>(5./GST_SECOND))
+                GST_SEEK_TYPE_NONE, <gint64>(-1))
 
         if not ret:
             return
