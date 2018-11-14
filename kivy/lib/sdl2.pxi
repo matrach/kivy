@@ -156,6 +156,12 @@ cdef extern from "SDL.h":
         SDL_BlitMap *map
         int refcount
 
+    cdef struct SDL_GameController
+    # XXX: how to declare opaque enums?
+    ctypedef enum SDL_GameControllerButton:
+        _SDL_GAMECONTROLLERBUTTON_OPAQUE
+    ctypedef enum SDL_GameControllerAxis:
+        _SDL_GAMECONTROLLERAXIS_OPAQUE
 
     ctypedef enum SDL_EventType:
         SDL_FIRSTEVENT     = 0,
@@ -182,6 +188,14 @@ cdef extern from "SDL.h":
         SDL_JOYHATMOTION
         SDL_JOYBUTTONDOWN
         SDL_JOYBUTTONUP
+        SDL_JOYDEVICEADDED,
+        SDL_JOYDEVICEREMOVED,
+        SDL_CONTROLLERAXISMOTION  = 0x650
+        SDL_CONTROLLERBUTTONDOWN
+        SDL_CONTROLLERBUTTONUP
+        SDL_CONTROLLERDEVICEADDED
+        SDL_CONTROLLERDEVICEREMOVED
+        SDL_CONTROLLERDEVICEREMAPPED
         SDL_FINGERDOWN      = 0x700
         SDL_FINGERUP
         SDL_FINGERMOTION
@@ -352,6 +366,38 @@ cdef extern from "SDL.h":
         SDL_JoystickID which
         Uint8 button
         Uint8 state
+    cdef struct SDL_JoyDeviceEvent:
+        Uint32 type
+        Uint32 timestamp
+        Sint32 which
+
+    cdef struct SDL_ControllerAxisEvent:
+        Uint32 type
+        Uint32 timestamp
+        SDL_JoystickID which
+        Uint8 axis
+        Uint8 padding1
+        Uint8 padding2
+        Uint8 padding3
+        Sint16 value
+        Uint16 padding4
+
+
+    cdef struct SDL_ControllerButtonEvent:
+        Uint32 type
+        Uint32 timestamp
+        SDL_JoystickID which
+        Uint8 button
+        Uint8 state
+        Uint8 padding1
+        Uint8 padding2
+
+
+    cdef struct SDL_ControllerDeviceEvent:
+        Uint32 type
+        Uint32 timestamp
+        Sint32 which
+
     cdef struct SDL_QuitEvent:
         pass
     cdef struct SDL_UserEvent:
@@ -385,6 +431,10 @@ cdef extern from "SDL.h":
         SDL_JoyBallEvent jball
         SDL_JoyHatEvent jhat
         SDL_JoyButtonEvent jbutton
+        SDL_JoyDeviceEvent jdevice
+        SDL_ControllerAxisEvent caxis
+        SDL_ControllerButtonEvent cbutton
+        SDL_ControllerDeviceEvent cdevice
         SDL_QuitEvent quit
         SDL_UserEvent user
         SDL_SysWMEvent syswm
@@ -440,6 +490,7 @@ cdef extern from "SDL.h":
     cdef char *SDL_HINT_ORIENTATIONS
     cdef char *SDL_HINT_VIDEO_WIN_D3DCOMPILER
     cdef char *SDL_HINT_ACCELEROMETER_AS_JOYSTICK
+    cdef char *SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS
 
     cdef int SDL_QUERY               = -1
     cdef int SDL_IGNORE              =  0
@@ -593,6 +644,12 @@ cdef extern from "SDL.h":
 
     cdef int SDL_NumJoysticks()
     cdef SDL_Joystick * SDL_JoystickOpen(int index)
+    cdef const char* SDL_JoystickNameForIndex(int device_index)
+    cdef SDL_bool SDL_IsGameController(int joystick_index)
+    cdef SDL_GameController* SDL_GameControllerOpen(int joystick_index)
+    cdef const char* SDL_GameControllerName(SDL_GameController* gamecontroller)
+    cdef const char* SDL_GameControllerGetStringForButton(SDL_GameControllerButton button)
+    cdef const char* SDL_GameControllerGetStringForAxis(SDL_GameControllerAxis axis)
     cdef SDL_Window * SDL_GetKeyboardFocus()
     cdef Uint8 *SDL_GetKeyboardState(int *numkeys)
     cdef SDL_Keymod SDL_GetModState()

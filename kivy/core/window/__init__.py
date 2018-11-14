@@ -867,7 +867,8 @@ class WindowBase(EventDispatcher):
         'on_key_down', 'on_key_up', 'on_textinput', 'on_dropfile',
         'on_request_close', 'on_cursor_enter', 'on_cursor_leave',
         'on_joy_axis', 'on_joy_hat', 'on_joy_ball',
-        'on_joy_button_down', 'on_joy_button_up', 'on_memorywarning',
+        'on_joy_button_down', 'on_joy_button_up', 'on_game_axis',
+        'on_game_button_down', 'on_game_button_up', 'on_memorywarning',
         'on_textedit')
 
     def __new__(cls, **kwargs):
@@ -1658,6 +1659,16 @@ class WindowBase(EventDispatcher):
         '''Event called when a joystick has a button released.
 
         .. versionadded:: 1.9.0'''
+        pass
+
+    def on_game_axis(self, stickid, axis, value):
+        pass
+
+
+    def on_game_button_down(self, stickid, button):
+        pass
+
+    def on_game_button_up(self, stickid, button):
         pass
 
     def on_keyboard(self, key, scancode=None, codepoint=None,

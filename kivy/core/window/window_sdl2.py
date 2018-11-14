@@ -601,6 +601,10 @@ class WindowSDL(WindowBase):
             elif action == 'windowleave':
                 self.dispatch('on_cursor_leave')
 
+            elif action == 'joydeviceremoved':
+                Logger.error('removed', action, args)
+            elif action == 'joydeviceadded':
+                Logger.error('added', action, args)
             elif action == 'joyaxismotion':
                 stickid, axisid, value = args
                 self.dispatch('on_joy_axis', stickid, axisid, value)
@@ -616,6 +620,20 @@ class WindowSDL(WindowBase):
             elif action == 'joybuttonup':
                 stickid, buttonid = args
                 self.dispatch('on_joy_button_up', stickid, buttonid)
+
+            elif action == 'controllerdeviceremoved':
+                Logger.error('removed', action, args)
+            elif action == 'controllerdeviceadded':
+                Logger.error('added', action, args)
+            elif action == 'controlleraxismotion':
+                stickid, axis, value = args
+                self.dispatch('on_game_axis', stickid, axis.decode(), value)
+            elif action == 'controllerbuttondown':
+                stickid, button = args
+                self.dispatch('on_game_button_down', stickid, button.decode())
+            elif action == 'controllerbuttonup':
+                stickid, button = args
+                self.dispatch('on_game_button_up', stickid, button.decode())
 
             elif action in ('keydown', 'keyup'):
                 mod, key, scancode, kstr = args

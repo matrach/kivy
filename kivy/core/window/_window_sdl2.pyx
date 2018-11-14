@@ -88,8 +88,10 @@ cdef class _WindowSDL2Storage:
             self.win_flags |= SDL_WINDOW_HIDDEN
 
         SDL_SetHint(SDL_HINT_ACCELEROMETER_AS_JOYSTICK, b'0')
+        #SDL_SetHint(SDL_HINT_JOYSTICK_ALLOW_BACKGROUND_EVENTS, b'1')
 
-        if SDL_Init(SDL_INIT_VIDEO | SDL_INIT_JOYSTICK) < 0:
+
+        if SDL_Init(SDL_INIT_VIDEO | SDL_INIT_GAMECONTROLLER) < 0:
             self.die()
 
         # Set default orientation (force landscape for now)
@@ -218,8 +220,11 @@ cdef class _WindowSDL2Storage:
 
         # Open all available joysticks
         cdef int joy_i
+        cdef SDL_Joystick *joystick
         for joy_i in range(SDL_NumJoysticks()):
-            SDL_JoystickOpen(joy_i)
+            joystick = SDL_JoystickOpen(joy_i)
+            if SDL_IsGameController(joy_i):
+                SDL_GameControllerOpen(joy_i)
 
         SDL_SetEventFilter(_event_filter, <void *>self)
 
@@ -549,6 +554,14 @@ cdef class _WindowSDL2Storage:
             y = event.tfinger.y
             action = 'fingerdown' if event.type == SDL_FINGERDOWN else 'fingerup'
             return (action, fid, x, y)
+        elif event.type == SDL_JOYDEVICEADDED:
+            device_index = event.jdevice.which
+            return (
+                'joydeviceadded',
+                device_index, SDL_JoystickNameForIndex(device_index),
+            )
+        elif event.type == SDL_JOYDEVICEREMOVED:
+            return ('joydeviceremoved', event.jdevice.which)
         elif event.type == SDL_JOYAXISMOTION:
             return (
                 'joyaxismotion',
@@ -577,6 +590,32 @@ cdef class _WindowSDL2Storage:
             return ('joybuttondown', event.jbutton.which, event.jbutton.button)
         elif event.type == SDL_JOYBUTTONUP:
             return ('joybuttonup', event.jbutton.which, event.jbutton.button)
+        elif event.type == SDL_CONTROLLERDEVICEADDED:
+            return ('controllerdeviceadded', event.cdevice.which)
+        elif event.type == SDL_CONTROLLERDEVICEREMOVED:
+            return ('controllerdeviceremoved', event.cdevice.which)
+        elif event.type == SDL_CONTROLLERAXISMOTION:
+            return (
+                'controlleraxismotion',
+                event.caxis.which,
+                SDL_GameControllerGetStringForAxis(
+                    <SDL_GameControllerAxis>event.caxis.axis),
+                event.caxis.value
+            )
+        elif event.type == SDL_CONTROLLERBUTTONUP:
+            return (
+                'controllerbuttonup',
+                event.cbutton.which,
+                SDL_GameControllerGetStringForButton(
+                <SDL_GameControllerButton>event.cbutton.button)
+            )
+        elif event.type == SDL_CONTROLLERBUTTONDOWN:
+            return (
+                'controllerbuttondown',
+                event.cbutton.which,
+                SDL_GameControllerGetStringForButton(
+                <SDL_GameControllerButton>event.cbutton.button)
+            )
         elif event.type == SDL_WINDOWEVENT:
             if event.window.event == SDL_WINDOWEVENT_EXPOSED:
                 action = ('windowexposed', )
